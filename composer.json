@@ -17,6 +17,6 @@
     "handle": "craft-analytics",
     "name": "Analytics",
     "class": "sidecar\\craftanalytics\\Plugin",
-    "developer": "Sidecar"
+    "developer": "Side-Car"
   }
 }
