@@ -93,4 +93,4 @@ MIT
 
 ## Credits
 
-Developed by [Sidecar](https://github.com/alexandreSideCar).
+Developed by [Side-Car](https://github.com/alexandreSideCar).
