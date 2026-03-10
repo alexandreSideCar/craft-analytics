@@ -1,0 +1,379 @@
+{% extends '_layouts/cp.twig' %}
+
+{% set title = 'Analytics'|t('craft-analytics') %}
+
+{# Macro for percentage change badge #}
+{% macro changeBadge(pct) %}
+  {% if pct > 0 %}
+    <span style="color: #16a34a;">+{{ pct }}%</span>
+  {% elseif pct < 0 %}
+    <span style="color: #dc2626;">{{ pct }}%</span>
+  {% else %}
+    <span style="color: #9ca3af;">0%</span>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<style>
+  #content .flex { align-items: baseline !important; }
+</style>
+
+{% if not isConfigured %}
+  <div class="pane">
+    <div class="zilch">
+      <p>{{ 'Google Analytics is not configured yet.'|t('craft-analytics') }}</p>
+      {% if canManage %}
+        <p><a href="{{ cpUrl('settings/plugins/craft-analytics') }}" class="btn submit">{{ 'Configure Settings'|t('craft-analytics') }}</a></p>
+      {% endif %}
+    </div>
+  </div>
+{% elseif summary.error is defined %}
+  <div class="pane">
+    <div class="zilch">
+      <p>{{ 'Error fetching analytics data:'|t('craft-analytics') }}</p>
+      <p class="error">{{ summary.error }}</p>
+    </div>
+  </div>
+{% else %}
+
+  {# Summary Cards #}
+  <div class="flex" style="gap: 24px; margin-bottom: 24px;">
+    {% set periods = {
+      today: 'Today'|t('craft-analytics'),
+      week: 'Last 7 days'|t('craft-analytics'),
+      month: 'Last 30 days'|t('craft-analytics'),
+    } %}
+
+    {% for key, label in periods %}
+      {% set data = summary[key] ?? {} %}
+      {% set change = data.change ?? {} %}
+      <div class="pane" style="flex: 1;">
+        <h2 class="light" style="margin-bottom: 14px;">{{ label }}</h2>
+        <table class="data fullwidth">
+          <tbody>
+            {% for metric, metricLabel in { users: 'Users'|t('craft-analytics'), sessions: 'Sessions'|t('craft-analytics'), pageviews: 'Page Views'|t('craft-analytics') } %}
+              <tr>
+                <th class="light">{{ metricLabel }}</th>
+                <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ (data[metric] ?? 0) | number_format }}</td>
+                <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
+                  {% if change[metric] is defined %}
+                    {{ _self.changeBadge(change[metric]) }}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div style="margin-top: 8px; font-size: 0.75em; color: #9ca3af;">
+          {% if key == 'today' %}{{ 'vs yesterday'|t('craft-analytics') }}
+          {% elseif key == 'week' %}{{ 'vs 7 days before'|t('craft-analytics') }}
+          {% else %}{{ 'vs 30 days before'|t('craft-analytics') }}{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# Daily Traffic Chart #}
+  {% set hasDaily = dailyStats is defined and dailyStats.error is not defined and dailyStats | length %}
+  {% set hasSources = trafficSources is defined and trafficSources.error is not defined and trafficSources | length %}
+
+  {% if hasDaily %}
+    <div class="pane" style="margin-bottom: 24px;">
+      <h2 class="light" style="margin-bottom: 14px;">{{ 'Daily Traffic (30 days)'|t('craft-analytics') }}</h2>
+      <div style="position: relative; height: 300px;">
+        <canvas id="dailyChart"></canvas>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="flex" style="gap: 24px;">
+    {# Top Pages #}
+    <div class="pane" style="flex: 2;">
+      <h2 class="light" style="margin-bottom: 14px;">{{ 'Top Pages (30 days)'|t('craft-analytics') }}</h2>
+      {% if topPages.error is defined %}
+        <p class="error">{{ topPages.error }}</p>
+      {% elseif topPages | length %}
+        <table class="data fullwidth">
+          <thead>
+            <tr>
+              <th>{{ 'Title'|t('craft-analytics') }}</th>
+              <th>{{ 'Path'|t('craft-analytics') }}</th>
+              <th style="text-align: right;">{{ 'Views'|t('craft-analytics') }}</th>
+              <th style="text-align: right; width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for page in topPages %}
+              <tr>
+                <td>{{ page.title }}</td>
+                <td><code style="font-size: 0.85em; color: #6b7280;">{{ page.path }}</code></td>
+                <td style="text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">{{ page.views | number_format }}</td>
+                <td style="text-align: right; font-size: 0.85em;">{{ _self.changeBadge(page.change) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
+      {% endif %}
+    </div>
+
+    {# Traffic Sources #}
+    <div class="pane" style="flex: 1;">
+      <h2 class="light" style="margin-bottom: 14px;">{{ 'Traffic Sources (30 days)'|t('craft-analytics') }}</h2>
+      {% if trafficSources.error is defined %}
+        <p class="error">{{ trafficSources.error }}</p>
+      {% elseif hasSources %}
+        <div style="position: relative; height: 250px; margin-bottom: 16px;">
+          <canvas id="sourcesChart"></canvas>
+        </div>
+        <table class="data fullwidth">
+          <thead>
+            <tr>
+              <th>{{ 'Source'|t('craft-analytics') }}</th>
+              <th style="text-align: right;">{{ 'Sessions'|t('craft-analytics') }}</th>
+              <th style="text-align: right; width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for source in trafficSources %}
+              <tr>
+                <td>{{ source.source }}</td>
+                <td style="text-align: right; font-variant-numeric: tabular-nums;">{{ source.sessions | number_format }}</td>
+                <td style="text-align: right; font-size: 0.85em;">{{ _self.changeBadge(source.change) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Key Events & Engagement #}
+  <div class="flex" style="gap: 24px; margin-top: 24px;">
+    {# Key Events #}
+    <div class="pane" style="flex: 1;">
+      <h2 class="light" style="margin-bottom: 14px;">{{ 'Key Events (30 days)'|t('craft-analytics') }}</h2>
+      {% if keyEvents.error is defined %}
+        <p class="error">{{ keyEvents.error }}</p>
+      {% elseif keyEvents.events is defined and keyEvents.events | length %}
+        <div style="margin-bottom: 14px; padding: 12px; background: #f0f9ff; border-radius: 6px; display: flex; align-items: center; gap: 12px;">
+          <div>
+            <div style="font-size: 0.75em; color: #6b7280;">{{ 'Total Conversions'|t('craft-analytics') }}</div>
+            <div style="font-size: 1.5em; font-weight: 700; font-variant-numeric: tabular-nums;">{{ keyEvents.total | number_format }}</div>
+          </div>
+          <div style="font-size: 0.85em;">
+            {{ _self.changeBadge(keyEvents.totalChange) }}
+          </div>
+        </div>
+        <table class="data fullwidth">
+          <thead>
+            <tr>
+              <th>{{ 'Event'|t('craft-analytics') }}</th>
+              <th style="text-align: right;">{{ 'Count'|t('craft-analytics') }}</th>
+              <th style="text-align: right; width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event in keyEvents.events %}
+              <tr>
+                <td><code style="font-size: 0.85em;">{{ event.name }}</code></td>
+                <td style="text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">{{ event.count | number_format }}</td>
+                <td style="text-align: right; font-size: 0.85em;">{{ _self.changeBadge(event.change) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="light">{{ 'No key events configured in GA4.'|t('craft-analytics') }}</p>
+      {% endif %}
+    </div>
+
+    {# Engagement Stats #}
+    <div class="pane" style="flex: 1;">
+      <h2 class="light" style="margin-bottom: 14px;">{{ 'Engagement (30 days)'|t('craft-analytics') }}</h2>
+      {% if engagement.error is defined %}
+        <p class="error">{{ engagement.error }}</p>
+      {% else %}
+        <table class="data fullwidth">
+          <tbody>
+            <tr>
+              <th class="light">{{ 'Avg. Session Duration'|t('craft-analytics') }}</th>
+              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">
+                {% set mins = (engagement.avgDuration / 60) | round(0, 'floor') %}
+                {% set secs = engagement.avgDuration % 60 %}
+                {{ mins }}m {{ '%02d'|format(secs) }}s
+              </td>
+              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
+                {{ _self.changeBadge(engagement.avgDurationChange) }}
+              </td>
+            </tr>
+            <tr>
+              <th class="light">{{ 'Bounce Rate'|t('craft-analytics') }}</th>
+              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.bounceRate }}%</td>
+              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
+                {% if engagement.bounceRateChange > 0 %}
+                  <span style="color: #dc2626;">+{{ engagement.bounceRateChange }}%</span>
+                {% elseif engagement.bounceRateChange < 0 %}
+                  <span style="color: #16a34a;">{{ engagement.bounceRateChange }}%</span>
+                {% else %}
+                  <span style="color: #9ca3af;">0%</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th class="light">{{ 'Pages / Session'|t('craft-analytics') }}</th>
+              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.pagesPerSession }}</td>
+              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
+                {{ _self.changeBadge(engagement.pagesPerSessionChange) }}
+              </td>
+            </tr>
+            <tr>
+              <th class="light">{{ 'New Users'|t('craft-analytics') }}</th>
+              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.newUsers | number_format }}</td>
+              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
+                {{ _self.changeBadge(engagement.newUsersChange) }}
+              </td>
+            </tr>
+            <tr>
+              <th class="light">{{ 'Returning Users'|t('craft-analytics') }}</th>
+              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.returningUsers | number_format }}</td>
+              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top: 8px; font-size: 0.75em; color: #9ca3af;">
+          {{ 'vs 30 days before'|t('craft-analytics') }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Refresh button — manage permission only #}
+  {% if canManage %}
+    <div style="margin-top: 24px;">
+      <form method="post">
+        {{ csrfInput() }}
+        {{ actionInput('craft-analytics/analytics/refresh') }}
+        <button type="submit" class="btn">{{ 'Clear Cache & Refresh'|t('craft-analytics') }}</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {# Chart.js — only load when charts are needed #}
+  {% if hasDaily or hasSources %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        {% if hasDaily %}
+          const dailyData = {{ dailyStats | json_encode | raw }};
+          const labels = dailyData.map(d => {
+            const date = new Date(d.date);
+            return date.toLocaleDateString('{{ currentSite.language }}', { month: 'short', day: 'numeric' });
+          });
+
+          new Chart(document.getElementById('dailyChart'), {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: {{ 'Users'|t('craft-analytics')|json_encode|raw }},
+                  data: dailyData.map(d => d.users),
+                  borderColor: '#3b82f6',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  fill: true,
+                  tension: 0.3,
+                  borderWidth: 2,
+                  pointRadius: 1,
+                  pointHoverRadius: 4,
+                },
+                {
+                  label: {{ 'Sessions'|t('craft-analytics')|json_encode|raw }},
+                  data: dailyData.map(d => d.sessions),
+                  borderColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  fill: true,
+                  tension: 0.3,
+                  borderWidth: 2,
+                  pointRadius: 1,
+                  pointHoverRadius: 4,
+                },
+                {
+                  label: {{ 'Page Views'|t('craft-analytics')|json_encode|raw }},
+                  data: dailyData.map(d => d.pageviews),
+                  borderColor: '#f59e0b',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  fill: true,
+                  tension: 0.3,
+                  borderWidth: 2,
+                  pointRadius: 1,
+                  pointHoverRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                mode: 'index',
+                intersect: false,
+              },
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: { usePointStyle: true, padding: 16 },
+                },
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  ticks: { maxTicksLimit: 10 },
+                },
+                y: {
+                  beginAtZero: true,
+                  grid: { color: 'rgba(0,0,0,0.06)' },
+                },
+              },
+            },
+          });
+        {% endif %}
+
+        {% if hasSources %}
+          const sourcesData = {{ trafficSources | json_encode | raw }};
+          const sourceColors = [
+            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+            '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+          ];
+
+          new Chart(document.getElementById('sourcesChart'), {
+            type: 'doughnut',
+            data: {
+              labels: sourcesData.map(s => s.source),
+              datasets: [{
+                data: sourcesData.map(s => s.sessions),
+                backgroundColor: sourceColors.slice(0, sourcesData.length),
+                borderWidth: 0,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: { usePointStyle: true, padding: 10, font: { size: 11 } },
+                },
+              },
+            },
+          });
+        {% endif %}
+      });
+    </script>
+  {% endif %}
+
+{% endif %}
+
+{% endblock %}

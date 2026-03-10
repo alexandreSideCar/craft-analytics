@@ -1,0 +1,22 @@
+{
+  "name": "sidecar/craft-analytics",
+  "description": "Google Analytics 4 dashboard for Craft CMS",
+  "type": "craft-plugin",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "craftcms/cms": "^5.3.0",
+    "google/analytics-data": "^0.14"
+  },
+  "autoload": {
+    "psr-4": {
+      "sidecar\\craftanalytics\\": "src/"
+    }
+  },
+  "extra": {
+    "handle": "craft-analytics",
+    "name": "Analytics",
+    "class": "sidecar\\craftanalytics\\Plugin",
+    "developer": "Sidecar"
+  }
+}

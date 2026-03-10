@@ -1,0 +1,35 @@
+{% if not isConfigured %}
+  <div class="zilch">
+    <p>{{ 'Analytics not configured.'|t('craft-analytics') }}</p>
+    <p><a href="{{ cpUrl('settings/plugins/craft-analytics') }}">{{ 'Settings'|t('craft-analytics') }}</a></p>
+  </div>
+{% elseif summary.error is defined %}
+  <p class="error" style="padding: 12px;">{{ summary.error }}</p>
+{% else %}
+  <table class="data fullwidth" style="margin: 0;">
+    <thead>
+      <tr>
+        <th></th>
+        <th style="text-align: right;">{{ 'Users'|t('craft-analytics') }}</th>
+        <th style="text-align: right;">{{ 'Sessions'|t('craft-analytics') }}</th>
+        <th style="text-align: right;">{{ 'Views'|t('craft-analytics') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set periods = {
+        today: 'Today'|t('craft-analytics'),
+        week: '7 days'|t('craft-analytics'),
+        month: '30 days'|t('craft-analytics'),
+      } %}
+      {% for key, label in periods %}
+        {% set data = summary[key] ?? {} %}
+        <tr>
+          <th class="light">{{ label }}</th>
+          <td style="text-align: right;">{{ data.users ?? 0 | number_format }}</td>
+          <td style="text-align: right;">{{ data.sessions ?? 0 | number_format }}</td>
+          <td style="text-align: right;">{{ data.pageviews ?? 0 | number_format }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}

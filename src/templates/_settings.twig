@@ -1,0 +1,107 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.autosuggestField({
+    label: 'GA4 Property ID'|t('craft-analytics'),
+    instructions: 'The numeric property ID from GA4 Admin > Property Settings (e.g. `properties/123456789`). Supports environment variables.'|t('craft-analytics'),
+    id: 'propertyId',
+    name: 'propertyId',
+    value: settings.propertyId,
+    suggestEnvVars: true,
+    required: true,
+}) }}
+
+<hr>
+
+<h2>{{ 'Google OAuth2'|t('craft-analytics') }}</h2>
+
+{{ forms.autosuggestField({
+    label: 'OAuth Client ID'|t('craft-analytics'),
+    instructions: 'From Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs.'|t('craft-analytics'),
+    id: 'oauthClientId',
+    name: 'oauthClientId',
+    value: settings.oauthClientId,
+    suggestEnvVars: true,
+    required: true,
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'OAuth Client Secret'|t('craft-analytics'),
+    instructions: 'The client secret for the OAuth 2.0 client.'|t('craft-analytics'),
+    id: 'oauthClientSecret',
+    name: 'oauthClientSecret',
+    value: settings.oauthClientSecret,
+    suggestEnvVars: true,
+    required: true,
+}) }}
+
+{% set redirectUri = craft.app.plugins.getPlugin('craft-analytics').analytics.getRedirectUri() %}
+<div class="field">
+    <div class="heading">
+        <label>{{ 'Authorized Redirect URI'|t('craft-analytics') }}</label>
+        <div class="instructions"><p>{{ 'Add this URI to your Google OAuth client\'s **Authorized redirect URIs**.'|t('craft-analytics') }}</p></div>
+    </div>
+    <div class="input">
+        <code style="padding: 8px 12px; background: #f1f5f9; border-radius: 4px; display: inline-block; user-select: all;">{{ redirectUri }}</code>
+    </div>
+</div>
+
+{# Preserve OAuth tokens on save #}
+{{ forms.hidden({
+    name: 'oauthAccessToken',
+    value: settings.oauthAccessToken,
+}) }}
+{{ forms.hidden({
+    name: 'oauthRefreshToken',
+    value: settings.oauthRefreshToken,
+}) }}
+{{ forms.hidden({
+    name: 'oauthExpiresAt',
+    value: settings.oauthExpiresAt,
+}) }}
+
+<hr>
+
+<h2>{{ 'Connection Status'|t('craft-analytics') }}</h2>
+
+{% if settings.isConnected() %}
+    <div class="field">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #dcfce7; color: #166534; border-radius: 6px; font-weight: 500;">
+                <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
+                {{ 'Connected to Google Analytics'|t('craft-analytics') }}
+            </span>
+            <form method="post">
+                {{ csrfInput() }}
+                {{ actionInput('craft-analytics/analytics/disconnect') }}
+                <button type="submit" class="btn small" onclick="return confirm('{{ 'Disconnect from Google Analytics?'|t('craft-analytics')|e('js') }}')">{{ 'Disconnect'|t('craft-analytics') }}</button>
+            </form>
+        </div>
+    </div>
+{% else %}
+    <div class="field">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fef3c7; color: #92400e; border-radius: 6px; font-weight: 500;">
+                <span style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; display: inline-block;"></span>
+                {{ 'Not connected'|t('craft-analytics') }}
+            </span>
+            {% if settings.oauthClientId and settings.oauthClientSecret %}
+                <a href="{{ cpUrl('craft-analytics/oauth/connect') }}" class="btn submit">{{ 'Connect to Google'|t('craft-analytics') }}</a>
+            {% else %}
+                <span class="light">{{ 'Save your Client ID and Secret first, then connect.'|t('craft-analytics') }}</span>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<hr>
+
+{{ forms.textField({
+    label: 'Cache Duration (seconds)'|t('craft-analytics'),
+    instructions: 'How long to cache API responses. Default: 300 (5 minutes).'|t('craft-analytics'),
+    id: 'cacheDuration',
+    name: 'cacheDuration',
+    value: settings.cacheDuration,
+    type: 'number',
+    min: 0,
+    size: 10,
+}) }}
