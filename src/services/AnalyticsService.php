@@ -12,13 +12,17 @@ use Google\Analytics\Data\V1beta\Metric;
 use Google\Analytics\Data\V1beta\OrderBy;
 use Google\Analytics\Data\V1beta\OrderBy\MetricOrderBy;
 use Google\Auth\Credentials\UserRefreshCredentials;
+use Google\Client as GoogleClient;
+use Google\Service\SearchConsole;
+use Google\Service\SearchConsole\SearchAnalyticsQueryRequest;
 use sidecar\craftanalytics\Plugin;
 
 class AnalyticsService extends Component
 {
     private ?BetaAnalyticsDataClient $_client = null;
 
-    private const SCOPES = ['https://www.googleapis.com/auth/analytics.readonly'];
+    private const SCOPE_ANALYTICS = 'https://www.googleapis.com/auth/analytics.readonly';
+    private const SCOPE_SEARCH_CONSOLE = 'https://www.googleapis.com/auth/webmasters.readonly';
     private const CACHE_PREFIX = 'craft-analytics:';
 
     public function isConfigured(): bool
@@ -41,7 +45,7 @@ class AnalyticsService extends Component
             'client_id' => $clientId,
             'redirect_uri' => $redirectUri,
             'response_type' => 'code',
-            'scope' => implode(' ', self::SCOPES),
+            'scope' => implode(' ', $this->_getScopes()),
             'access_type' => 'offline',
             'prompt' => 'consent',
         ];
@@ -151,10 +155,19 @@ class AnalyticsService extends Component
         }, $duration);
     }
 
+    public function getSearchConsoleStats(): array
+    {
+        $duration = Plugin::$plugin->getSettings()->cacheDuration;
+
+        return Craft::$app->getCache()->getOrSet(self::CACHE_PREFIX . 'search-console', function () {
+            return $this->_fetchSearchConsoleStats();
+        }, $duration);
+    }
+
     public function clearCache(): void
     {
         $cache = Craft::$app->getCache();
-        foreach (['summary', 'traffic-sources', 'top-pages', 'daily-30', 'key-events', 'engagement'] as $key) {
+        foreach (['summary', 'traffic-sources', 'top-pages', 'daily-30', 'key-events', 'engagement', 'search-console'] as $key) {
             $cache->delete(self::CACHE_PREFIX . $key);
         }
     }
@@ -536,6 +549,140 @@ class AnalyticsService extends Component
         }
     }
 
+    private function _fetchSearchConsoleStats(): array
+    {
+        try {
+            $service = $this->_getSearchConsoleService();
+            $siteUrl = $this->_getSearchConsoleSiteUrl();
+
+            $endDate = date('Y-m-d', strtotime('-2 days'));
+            $startDate = date('Y-m-d', strtotime('-31 days'));
+            $prevEndDate = date('Y-m-d', strtotime('-32 days'));
+            $prevStartDate = date('Y-m-d', strtotime('-61 days'));
+
+            // Current period — totals
+            $totalRequest = new SearchAnalyticsQueryRequest();
+            $totalRequest->setStartDate($startDate);
+            $totalRequest->setEndDate($endDate);
+            $totalRequest->setType('web');
+            $totalResponse = $service->searchanalytics->query($siteUrl, $totalRequest);
+
+            $currentTotals = $totalResponse->getRows()[0] ?? null;
+
+            // Previous period — totals
+            $prevTotalRequest = new SearchAnalyticsQueryRequest();
+            $prevTotalRequest->setStartDate($prevStartDate);
+            $prevTotalRequest->setEndDate($prevEndDate);
+            $prevTotalRequest->setType('web');
+            $prevTotalResponse = $service->searchanalytics->query($siteUrl, $prevTotalRequest);
+
+            $prevTotals = $prevTotalResponse->getRows()[0] ?? null;
+
+            $clicks = $currentTotals ? (int) $currentTotals->getClicks() : 0;
+            $impressions = $currentTotals ? (int) $currentTotals->getImpressions() : 0;
+            $ctr = $currentTotals ? round($currentTotals->getCtr() * 100, 1) : 0;
+            $position = $currentTotals ? round($currentTotals->getPosition(), 1) : 0;
+
+            $prevClicks = $prevTotals ? (int) $prevTotals->getClicks() : 0;
+            $prevImpressions = $prevTotals ? (int) $prevTotals->getImpressions() : 0;
+            $prevCtr = $prevTotals ? round($prevTotals->getCtr() * 100, 1) : 0;
+            $prevPosition = $prevTotals ? round($prevTotals->getPosition(), 1) : 0;
+
+            // Top queries
+            $queryRequest = new SearchAnalyticsQueryRequest();
+            $queryRequest->setStartDate($startDate);
+            $queryRequest->setEndDate($endDate);
+            $queryRequest->setDimensions(['query']);
+            $queryRequest->setType('web');
+            $queryRequest->setRowLimit(10);
+            $queryResponse = $service->searchanalytics->query($siteUrl, $queryRequest);
+
+            $queries = [];
+            foreach ($queryResponse->getRows() as $row) {
+                $queries[] = [
+                    'query' => $row->getKeys()[0],
+                    'clicks' => (int) $row->getClicks(),
+                    'impressions' => (int) $row->getImpressions(),
+                    'ctr' => round($row->getCtr() * 100, 1),
+                    'position' => round($row->getPosition(), 1),
+                ];
+            }
+
+            // Top pages
+            $pageRequest = new SearchAnalyticsQueryRequest();
+            $pageRequest->setStartDate($startDate);
+            $pageRequest->setEndDate($endDate);
+            $pageRequest->setDimensions(['page']);
+            $pageRequest->setType('web');
+            $pageRequest->setRowLimit(10);
+            $pageResponse = $service->searchanalytics->query($siteUrl, $pageRequest);
+
+            $pages = [];
+            foreach ($pageResponse->getRows() as $row) {
+                $url = $row->getKeys()[0];
+                $path = parse_url($url, PHP_URL_PATH) ?: $url;
+                $pages[] = [
+                    'page' => $path,
+                    'clicks' => (int) $row->getClicks(),
+                    'impressions' => (int) $row->getImpressions(),
+                    'ctr' => round($row->getCtr() * 100, 1),
+                    'position' => round($row->getPosition(), 1),
+                ];
+            }
+
+            return [
+                'totals' => [
+                    'clicks' => $clicks,
+                    'impressions' => $impressions,
+                    'ctr' => $ctr,
+                    'position' => $position,
+                    'clicksChange' => $this->_percentChange($clicks, $prevClicks),
+                    'impressionsChange' => $this->_percentChange($impressions, $prevImpressions),
+                    'ctrChange' => $prevCtr > 0 ? round((($ctr - $prevCtr) / $prevCtr) * 100, 1) : 0.0,
+                    'positionChange' => $prevPosition > 0 ? round((($position - $prevPosition) / $prevPosition) * 100, 1) : 0.0,
+                ],
+                'queries' => $queries,
+                'pages' => $pages,
+            ];
+        } catch (\Throwable $e) {
+            Craft::error('Analytics: Failed to fetch Search Console stats: ' . $e->getMessage(), __METHOD__);
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    private function _getSearchConsoleService(): SearchConsole
+    {
+        $settings = Plugin::$plugin->getSettings();
+        $clientId = App::parseEnv($settings->oauthClientId);
+        $clientSecret = App::parseEnv($settings->oauthClientSecret);
+        $refreshToken = $settings->oauthRefreshToken;
+
+        if (empty($refreshToken)) {
+            throw new \RuntimeException('Not connected to Google. Please authorize in plugin settings.');
+        }
+
+        $client = new GoogleClient();
+        $client->setClientId($clientId);
+        $client->setClientSecret($clientSecret);
+        $client->setAccessType('offline');
+        $client->fetchAccessTokenWithRefreshToken($refreshToken);
+
+        return new SearchConsole($client);
+    }
+
+    private function _getSearchConsoleSiteUrl(): string
+    {
+        $settings = Plugin::$plugin->getSettings();
+        $siteUrl = App::parseEnv($settings->searchConsoleSiteUrl);
+
+        if (empty($siteUrl)) {
+            // Fallback to primary site URL
+            $siteUrl = Craft::$app->getSites()->getPrimarySite()->getBaseUrl();
+        }
+
+        return rtrim($siteUrl, '/') . '/';
+    }
+
     private function _getClient(): BetaAnalyticsDataClient
     {
         if ($this->_client === null) {
@@ -549,7 +696,7 @@ class AnalyticsService extends Component
             }
 
             $credentials = new UserRefreshCredentials(
-                self::SCOPES,
+                $this->_getScopes(),
                 [
                     'client_id' => $clientId,
                     'client_secret' => $clientSecret,
@@ -588,5 +735,21 @@ class AnalyticsService extends Component
         }
 
         return $propertyId;
+    }
+
+    private function _getScopes(): array
+    {
+        $scopes = [self::SCOPE_ANALYTICS];
+
+        if (Plugin::$plugin->getSettings()->enableSearchConsole) {
+            $scopes[] = self::SCOPE_SEARCH_CONSOLE;
+        }
+
+        return $scopes;
+    }
+
+    public function isSearchConsoleEnabled(): bool
+    {
+        return Plugin::$plugin->getSettings()->enableSearchConsole;
     }
 }

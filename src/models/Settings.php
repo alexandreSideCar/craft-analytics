@@ -7,6 +7,8 @@ use craft\base\Model;
 class Settings extends Model
 {
     public string $propertyId = '';
+    public bool $enableSearchConsole = false;
+    public string $searchConsoleSiteUrl = '';
     public string $oauthClientId = '';
     public string $oauthClientSecret = '';
     public string $oauthAccessToken = '';
@@ -17,7 +19,9 @@ class Settings extends Model
     public function defineRules(): array
     {
         return [
-            [['propertyId', 'oauthClientId', 'oauthClientSecret', 'oauthAccessToken', 'oauthRefreshToken'], 'string'],
+            [['propertyId', 'searchConsoleSiteUrl', 'oauthClientId', 'oauthClientSecret', 'oauthAccessToken', 'oauthRefreshToken'], 'string'],
+            ['enableSearchConsole', 'boolean'],
+            ['enableSearchConsole', 'default', 'value' => false],
             ['oauthExpiresAt', 'integer'],
             ['cacheDuration', 'integer', 'min' => 0],
             ['cacheDuration', 'default', 'value' => 300],

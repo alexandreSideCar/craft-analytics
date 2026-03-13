@@ -12,6 +12,40 @@
 
 <hr>
 
+<h2>{{ 'Search Console'|t('craft-analytics') }}</h2>
+
+{{ forms.lightswitchField({
+    label: 'Enable Search Console'|t('craft-analytics'),
+    instructions: 'Display Google Search Console data (queries, impressions, clicks, positions). Requires the Search Console API to be enabled in Google Cloud Console. You must reconnect your Google account after enabling this.'|t('craft-analytics'),
+    id: 'enableSearchConsole',
+    name: 'enableSearchConsole',
+    on: settings.enableSearchConsole,
+}) }}
+
+<div id="searchConsoleSettings" {% if not settings.enableSearchConsole %}class="hidden"{% endif %}>
+  {{ forms.autosuggestField({
+      label: 'Search Console Site URL'|t('craft-analytics'),
+      instructions: 'The site URL as registered in Google Search Console (e.g. `https://example.com/`). Leave blank to use the primary site URL.'|t('craft-analytics'),
+      id: 'searchConsoleSiteUrl',
+      name: 'searchConsoleSiteUrl',
+      value: settings.searchConsoleSiteUrl,
+      suggestEnvVars: true,
+  }) }}
+</div>
+
+{% js %}
+  document.getElementById('enableSearchConsole').addEventListener('click', function() {
+    var container = document.getElementById('searchConsoleSettings');
+    if (container.classList.contains('hidden')) {
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
+  });
+{% endjs %}
+
+<hr>
+
 <h2>{{ 'Google OAuth2'|t('craft-analytics') }}</h2>
 
 {{ forms.autosuggestField({

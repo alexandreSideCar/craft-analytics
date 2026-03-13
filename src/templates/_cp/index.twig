@@ -2,21 +2,121 @@
 
 {% set title = 'Analytics'|t('craft-analytics') %}
 
-{# Macro for percentage change badge #}
+{# Macros #}
 {% macro changeBadge(pct) %}
   {% if pct > 0 %}
-    <span style="color: #16a34a;">+{{ pct }}%</span>
+    <span class="ca-change ca-change--up">+{{ pct }}%</span>
   {% elseif pct < 0 %}
-    <span style="color: #dc2626;">{{ pct }}%</span>
+    <span class="ca-change ca-change--down">{{ pct }}%</span>
   {% else %}
-    <span style="color: #9ca3af;">0%</span>
+    <span class="ca-change ca-change--flat">0%</span>
   {% endif %}
 {% endmacro %}
 
+{% macro changeBadgeInverted(pct) %}
+  {# For metrics where lower is better (bounce rate, position) #}
+  {% if pct < 0 %}
+    <span class="ca-change ca-change--up">{{ pct }}%</span>
+  {% elseif pct > 0 %}
+    <span class="ca-change ca-change--down">+{{ pct }}%</span>
+  {% else %}
+    <span class="ca-change ca-change--flat">0%</span>
+  {% endif %}
+{% endmacro %}
+
+{% css %}
+  .ca-grid {
+    display: grid;
+    gap: var(--xl);
+  }
+  .ca-grid--3 { grid-template-columns: repeat(3, 1fr); }
+  .ca-grid--4 { grid-template-columns: repeat(4, 1fr); }
+  .ca-grid--2-1 { grid-template-columns: 2fr 1fr; }
+  .ca-grid--1-1 { grid-template-columns: 1fr 1fr; }
+
+  .ca-section { margin-block-start: var(--xl); }
+
+  .ca-section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-block-end: var(--m);
+    padding-block-end: var(--s);
+    border-block-end: 1px solid var(--border-hairline);
+  }
+
+  .ca-pane-title {
+    color: var(--fg-subtle);
+    font-weight: 400;
+    margin-block-end: var(--m);
+  }
+
+  .ca-stat-value {
+    font-size: 1.2em;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .ca-stat-value--xl {
+    font-size: 1.5em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ca-change {
+    font-size: 0.8em;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .ca-change--up { color: var(--fg-success); }
+  .ca-change--down { color: var(--fg-error); }
+  .ca-change--flat { color: var(--fg-subtle); }
+
+  .ca-change-cell {
+    text-align: left;
+    width: 70px;
+    padding-inline-start: var(--xs);
+  }
+
+  .ca-right { text-align: right; }
+  .ca-tabnum { font-variant-numeric: tabular-nums; }
+  .ca-bold { font-weight: 600; }
+  .ca-code { font-size: 0.85em; color: var(--fg-subtle); }
+  .ca-hint { font-size: 0.8em; color: var(--fg-subtle); margin-block-start: var(--s); }
+
+  .ca-metric-card { text-align: center; }
+  .ca-metric-card__label { font-size: 0.85em; color: var(--fg-subtle); }
+  .ca-metric-card__value {
+    font-size: 1.5em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-block: 4px;
+  }
+
+  .ca-highlight {
+    padding: var(--m);
+    background: var(--gray-050);
+    border-radius: var(--s);
+    display: flex;
+    align-items: center;
+    gap: var(--m);
+    margin-block-end: var(--m);
+  }
+  .ca-highlight__label { font-size: 0.8em; color: var(--fg-subtle); }
+  .ca-highlight__value { font-size: 1.5em; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .ca-chart { position: relative; height: 300px; }
+  .ca-chart--sm { height: 250px; margin-block-end: var(--m); }
+
+  @media (max-width: 768px) {
+    .ca-grid--3, .ca-grid--4, .ca-grid--2-1, .ca-grid--1-1 {
+      grid-template-columns: 1fr;
+    }
+  }
+{% endcss %}
+
 {% block content %}
-<style>
-  #content .flex { align-items: baseline !important; }
-</style>
 
 {% if not isConfigured %}
   <div class="pane">
@@ -36,26 +136,26 @@
   </div>
 {% else %}
 
-  {# Summary Cards #}
-  <div class="flex" style="gap: 24px; margin-bottom: 24px;">
+  {# ── Summary Cards ── #}
+  <div class="ca-grid ca-grid--3">
     {% set periods = {
-      today: 'Today'|t('craft-analytics'),
-      week: 'Last 7 days'|t('craft-analytics'),
-      month: 'Last 30 days'|t('craft-analytics'),
+      today: { label: 'Today'|t('craft-analytics'), hint: 'vs yesterday'|t('craft-analytics') },
+      week: { label: 'Last 7 days'|t('craft-analytics'), hint: 'vs 7 days before'|t('craft-analytics') },
+      month: { label: 'Last 30 days'|t('craft-analytics'), hint: 'vs 30 days before'|t('craft-analytics') },
     } %}
 
-    {% for key, label in periods %}
+    {% for key, period in periods %}
       {% set data = summary[key] ?? {} %}
       {% set change = data.change ?? {} %}
-      <div class="pane" style="flex: 1;">
-        <h2 class="light" style="margin-bottom: 14px;">{{ label }}</h2>
+      <div class="pane">
+        <h2 class="ca-pane-title">{{ period.label }}</h2>
         <table class="data fullwidth">
           <tbody>
             {% for metric, metricLabel in { users: 'Users'|t('craft-analytics'), sessions: 'Sessions'|t('craft-analytics'), pageviews: 'Page Views'|t('craft-analytics') } %}
               <tr>
                 <th class="light">{{ metricLabel }}</th>
-                <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ (data[metric] ?? 0) | number_format }}</td>
-                <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
+                <td class="ca-stat-value">{{ (data[metric] ?? 0)|number_format }}</td>
+                <td class="ca-change-cell">
                   {% if change[metric] is defined %}
                     {{ _self.changeBadge(change[metric]) }}
                   {% endif %}
@@ -64,51 +164,48 @@
             {% endfor %}
           </tbody>
         </table>
-        <div style="margin-top: 8px; font-size: 0.75em; color: #9ca3af;">
-          {% if key == 'today' %}{{ 'vs yesterday'|t('craft-analytics') }}
-          {% elseif key == 'week' %}{{ 'vs 7 days before'|t('craft-analytics') }}
-          {% else %}{{ 'vs 30 days before'|t('craft-analytics') }}{% endif %}
-        </div>
+        <div class="ca-hint">{{ period.hint }}</div>
       </div>
     {% endfor %}
   </div>
 
-  {# Daily Traffic Chart #}
-  {% set hasDaily = dailyStats is defined and dailyStats.error is not defined and dailyStats | length %}
-  {% set hasSources = trafficSources is defined and trafficSources.error is not defined and trafficSources | length %}
+  {# ── Daily Traffic Chart ── #}
+  {% set hasDaily = dailyStats is defined and dailyStats.error is not defined and dailyStats|length %}
+  {% set hasSources = trafficSources is defined and trafficSources.error is not defined and trafficSources|length %}
 
   {% if hasDaily %}
-    <div class="pane" style="margin-bottom: 24px;">
-      <h2 class="light" style="margin-bottom: 14px;">{{ 'Daily Traffic (30 days)'|t('craft-analytics') }}</h2>
-      <div style="position: relative; height: 300px;">
+    <div class="pane ca-section">
+      <h2 class="ca-pane-title">{{ 'Daily Traffic (30 days)'|t('craft-analytics') }}</h2>
+      <div class="ca-chart">
         <canvas id="dailyChart"></canvas>
       </div>
     </div>
   {% endif %}
 
-  <div class="flex" style="gap: 24px;">
+  {# ── Top Pages & Traffic Sources ── #}
+  <div class="ca-grid ca-grid--2-1 ca-section">
     {# Top Pages #}
-    <div class="pane" style="flex: 2;">
-      <h2 class="light" style="margin-bottom: 14px;">{{ 'Top Pages (30 days)'|t('craft-analytics') }}</h2>
+    <div class="pane">
+      <h2 class="ca-pane-title">{{ 'Top Pages (30 days)'|t('craft-analytics') }}</h2>
       {% if topPages.error is defined %}
         <p class="error">{{ topPages.error }}</p>
-      {% elseif topPages | length %}
+      {% elseif topPages|length %}
         <table class="data fullwidth">
           <thead>
             <tr>
               <th>{{ 'Title'|t('craft-analytics') }}</th>
               <th>{{ 'Path'|t('craft-analytics') }}</th>
-              <th style="text-align: right;">{{ 'Views'|t('craft-analytics') }}</th>
-              <th style="text-align: right; width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
+              <th class="ca-right">{{ 'Views'|t('craft-analytics') }}</th>
+              <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
             </tr>
           </thead>
           <tbody>
             {% for page in topPages %}
               <tr>
                 <td>{{ page.title }}</td>
-                <td><code style="font-size: 0.85em; color: #6b7280;">{{ page.path }}</code></td>
-                <td style="text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">{{ page.views | number_format }}</td>
-                <td style="text-align: right; font-size: 0.85em;">{{ _self.changeBadge(page.change) }}</td>
+                <td><code class="ca-code">{{ page.path }}</code></td>
+                <td class="ca-right ca-bold ca-tabnum">{{ page.views|number_format }}</td>
+                <td class="ca-right">{{ _self.changeBadge(page.change) }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -119,28 +216,28 @@
     </div>
 
     {# Traffic Sources #}
-    <div class="pane" style="flex: 1;">
-      <h2 class="light" style="margin-bottom: 14px;">{{ 'Traffic Sources (30 days)'|t('craft-analytics') }}</h2>
+    <div class="pane">
+      <h2 class="ca-pane-title">{{ 'Traffic Sources (30 days)'|t('craft-analytics') }}</h2>
       {% if trafficSources.error is defined %}
         <p class="error">{{ trafficSources.error }}</p>
       {% elseif hasSources %}
-        <div style="position: relative; height: 250px; margin-bottom: 16px;">
+        <div class="ca-chart--sm">
           <canvas id="sourcesChart"></canvas>
         </div>
         <table class="data fullwidth">
           <thead>
             <tr>
               <th>{{ 'Source'|t('craft-analytics') }}</th>
-              <th style="text-align: right;">{{ 'Sessions'|t('craft-analytics') }}</th>
-              <th style="text-align: right; width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
+              <th class="ca-right">{{ 'Sessions'|t('craft-analytics') }}</th>
+              <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
             </tr>
           </thead>
           <tbody>
             {% for source in trafficSources %}
               <tr>
                 <td>{{ source.source }}</td>
-                <td style="text-align: right; font-variant-numeric: tabular-nums;">{{ source.sessions | number_format }}</td>
-                <td style="text-align: right; font-size: 0.85em;">{{ _self.changeBadge(source.change) }}</td>
+                <td class="ca-right ca-tabnum">{{ source.sessions|number_format }}</td>
+                <td class="ca-right">{{ _self.changeBadge(source.change) }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -151,37 +248,35 @@
     </div>
   </div>
 
-  {# Key Events & Engagement #}
-  <div class="flex" style="gap: 24px; margin-top: 24px;">
+  {# ── Key Events & Engagement ── #}
+  <div class="ca-grid ca-grid--1-1 ca-section">
     {# Key Events #}
-    <div class="pane" style="flex: 1;">
-      <h2 class="light" style="margin-bottom: 14px;">{{ 'Key Events (30 days)'|t('craft-analytics') }}</h2>
+    <div class="pane">
+      <h2 class="ca-pane-title">{{ 'Key Events (30 days)'|t('craft-analytics') }}</h2>
       {% if keyEvents.error is defined %}
         <p class="error">{{ keyEvents.error }}</p>
-      {% elseif keyEvents.events is defined and keyEvents.events | length %}
-        <div style="margin-bottom: 14px; padding: 12px; background: #f0f9ff; border-radius: 6px; display: flex; align-items: center; gap: 12px;">
+      {% elseif keyEvents.events is defined and keyEvents.events|length %}
+        <div class="ca-highlight">
           <div>
-            <div style="font-size: 0.75em; color: #6b7280;">{{ 'Total Conversions'|t('craft-analytics') }}</div>
-            <div style="font-size: 1.5em; font-weight: 700; font-variant-numeric: tabular-nums;">{{ keyEvents.total | number_format }}</div>
+            <div class="ca-highlight__label">{{ 'Total Conversions'|t('craft-analytics') }}</div>
+            <div class="ca-highlight__value">{{ keyEvents.total|number_format }}</div>
           </div>
-          <div style="font-size: 0.85em;">
-            {{ _self.changeBadge(keyEvents.totalChange) }}
-          </div>
+          <div>{{ _self.changeBadge(keyEvents.totalChange) }}</div>
         </div>
         <table class="data fullwidth">
           <thead>
             <tr>
               <th>{{ 'Event'|t('craft-analytics') }}</th>
-              <th style="text-align: right;">{{ 'Count'|t('craft-analytics') }}</th>
-              <th style="text-align: right; width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
+              <th class="ca-right">{{ 'Count'|t('craft-analytics') }}</th>
+              <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
             </tr>
           </thead>
           <tbody>
             {% for event in keyEvents.events %}
               <tr>
-                <td><code style="font-size: 0.85em;">{{ event.name }}</code></td>
-                <td style="text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">{{ event.count | number_format }}</td>
-                <td style="text-align: right; font-size: 0.85em;">{{ _self.changeBadge(event.change) }}</td>
+                <td><code class="ca-code">{{ event.name }}</code></td>
+                <td class="ca-right ca-bold ca-tabnum">{{ event.count|number_format }}</td>
+                <td class="ca-right">{{ _self.changeBadge(event.change) }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -191,9 +286,9 @@
       {% endif %}
     </div>
 
-    {# Engagement Stats #}
-    <div class="pane" style="flex: 1;">
-      <h2 class="light" style="margin-bottom: 14px;">{{ 'Engagement (30 days)'|t('craft-analytics') }}</h2>
+    {# Engagement #}
+    <div class="pane">
+      <h2 class="ca-pane-title">{{ 'Engagement (30 days)'|t('craft-analytics') }}</h2>
       {% if engagement.error is defined %}
         <p class="error">{{ engagement.error }}</p>
       {% else %}
@@ -201,59 +296,143 @@
           <tbody>
             <tr>
               <th class="light">{{ 'Avg. Session Duration'|t('craft-analytics') }}</th>
-              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">
-                {% set mins = (engagement.avgDuration / 60) | round(0, 'floor') %}
+              <td class="ca-stat-value">
+                {% set mins = (engagement.avgDuration / 60)|round(0, 'floor') %}
                 {% set secs = engagement.avgDuration % 60 %}
                 {{ mins }}m {{ '%02d'|format(secs) }}s
               </td>
-              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
-                {{ _self.changeBadge(engagement.avgDurationChange) }}
-              </td>
+              <td class="ca-change-cell">{{ _self.changeBadge(engagement.avgDurationChange) }}</td>
             </tr>
             <tr>
               <th class="light">{{ 'Bounce Rate'|t('craft-analytics') }}</th>
-              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.bounceRate }}%</td>
-              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
-                {% if engagement.bounceRateChange > 0 %}
-                  <span style="color: #dc2626;">+{{ engagement.bounceRateChange }}%</span>
-                {% elseif engagement.bounceRateChange < 0 %}
-                  <span style="color: #16a34a;">{{ engagement.bounceRateChange }}%</span>
-                {% else %}
-                  <span style="color: #9ca3af;">0%</span>
-                {% endif %}
-              </td>
+              <td class="ca-stat-value">{{ engagement.bounceRate }}%</td>
+              <td class="ca-change-cell">{{ _self.changeBadgeInverted(engagement.bounceRateChange) }}</td>
             </tr>
             <tr>
               <th class="light">{{ 'Pages / Session'|t('craft-analytics') }}</th>
-              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.pagesPerSession }}</td>
-              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
-                {{ _self.changeBadge(engagement.pagesPerSessionChange) }}
-              </td>
+              <td class="ca-stat-value">{{ engagement.pagesPerSession }}</td>
+              <td class="ca-change-cell">{{ _self.changeBadge(engagement.pagesPerSessionChange) }}</td>
             </tr>
             <tr>
               <th class="light">{{ 'New Users'|t('craft-analytics') }}</th>
-              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.newUsers | number_format }}</td>
-              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;">
-                {{ _self.changeBadge(engagement.newUsersChange) }}
-              </td>
+              <td class="ca-stat-value">{{ engagement.newUsers|number_format }}</td>
+              <td class="ca-change-cell">{{ _self.changeBadge(engagement.newUsersChange) }}</td>
             </tr>
             <tr>
               <th class="light">{{ 'Returning Users'|t('craft-analytics') }}</th>
-              <td style="text-align: right; font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums;">{{ engagement.returningUsers | number_format }}</td>
-              <td style="text-align: left; width: 70px; font-size: 0.75em; padding-left: 6px;"></td>
+              <td class="ca-stat-value">{{ engagement.returningUsers|number_format }}</td>
+              <td class="ca-change-cell"></td>
             </tr>
           </tbody>
         </table>
-        <div style="margin-top: 8px; font-size: 0.75em; color: #9ca3af;">
-          {{ 'vs 30 days before'|t('craft-analytics') }}
-        </div>
+        <div class="ca-hint">{{ 'vs 30 days before'|t('craft-analytics') }}</div>
       {% endif %}
     </div>
   </div>
 
-  {# Refresh button — manage permission only #}
+  {# ── Search Console ── #}
+  {% set hasSearchConsole = searchConsole is defined and searchConsole.error is not defined and searchConsole.totals is defined %}
+  {% if hasSearchConsole %}
+    <div class="ca-section">
+      <h3 class="ca-section-title">{{ 'Search Console (30 days)'|t('craft-analytics') }}</h3>
+
+      <div class="ca-grid ca-grid--4">
+        {% set sc = searchConsole.totals %}
+        {% set scMetrics = {
+          clicks: { label: 'Clicks'|t('craft-analytics'), value: sc.clicks|number_format, change: sc.clicksChange, invert: false },
+          impressions: { label: 'Impressions'|t('craft-analytics'), value: sc.impressions|number_format, change: sc.impressionsChange, invert: false },
+          ctr: { label: 'CTR'|t('craft-analytics'), value: sc.ctr ~ '%', change: sc.ctrChange, invert: false },
+          position: { label: 'Avg. Position'|t('craft-analytics'), value: sc.position, change: sc.positionChange, invert: true },
+        } %}
+        {% for key, m in scMetrics %}
+          <div class="pane ca-metric-card">
+            <div class="ca-metric-card__label">{{ m.label }}</div>
+            <div class="ca-metric-card__value">{{ m.value }}</div>
+            <div>
+              {% if m.invert %}
+                {{ _self.changeBadgeInverted(m.change) }}
+              {% else %}
+                {{ _self.changeBadge(m.change) }}
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="ca-grid ca-grid--1-1 ca-section">
+        <div class="pane">
+          <h2 class="ca-pane-title">{{ 'Top Search Queries'|t('craft-analytics') }}</h2>
+          {% if searchConsole.queries|length %}
+            <table class="data fullwidth">
+              <thead>
+                <tr>
+                  <th>{{ 'Query'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'Clicks'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'Impressions'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'CTR'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'Position'|t('craft-analytics') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for q in searchConsole.queries %}
+                  <tr>
+                    <td>{{ q.query }}</td>
+                    <td class="ca-right ca-bold ca-tabnum">{{ q.clicks|number_format }}</td>
+                    <td class="ca-right ca-tabnum">{{ q.impressions|number_format }}</td>
+                    <td class="ca-right ca-tabnum">{{ q.ctr }}%</td>
+                    <td class="ca-right ca-tabnum">{{ q.position }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
+          {% endif %}
+        </div>
+
+        <div class="pane">
+          <h2 class="ca-pane-title">{{ 'Top Pages in Search'|t('craft-analytics') }}</h2>
+          {% if searchConsole.pages|length %}
+            <table class="data fullwidth">
+              <thead>
+                <tr>
+                  <th>{{ 'Page'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'Clicks'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'Impressions'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'CTR'|t('craft-analytics') }}</th>
+                  <th class="ca-right">{{ 'Position'|t('craft-analytics') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in searchConsole.pages %}
+                  <tr>
+                    <td><code class="ca-code">{{ p.page }}</code></td>
+                    <td class="ca-right ca-bold ca-tabnum">{{ p.clicks|number_format }}</td>
+                    <td class="ca-right ca-tabnum">{{ p.impressions|number_format }}</td>
+                    <td class="ca-right ca-tabnum">{{ p.ctr }}%</td>
+                    <td class="ca-right ca-tabnum">{{ p.position }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="ca-hint">{{ 'Search Console data may be delayed by 2-3 days.'|t('craft-analytics') }}</div>
+    </div>
+  {% elseif searchConsole is defined and searchConsole.error is defined %}
+    <div class="pane ca-section">
+      <h2 class="ca-pane-title">{{ 'Search Console (30 days)'|t('craft-analytics') }}</h2>
+      <p class="error">{{ searchConsole.error }}</p>
+    </div>
+  {% endif %}
+
+  {# ── Refresh ── #}
   {% if canManage %}
-    <div style="margin-top: 24px;">
+    <div class="ca-section">
       <form method="post">
         {{ csrfInput() }}
         {{ actionInput('craft-analytics/analytics/refresh') }}
@@ -262,16 +441,15 @@
     </div>
   {% endif %}
 
-  {# Chart.js — only load when charts are needed #}
+  {# ── Charts ── #}
   {% if hasDaily or hasSources %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
+    {% js 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js' %}
+    {% js %}
+      (function () {
         {% if hasDaily %}
-          const dailyData = {{ dailyStats | json_encode | raw }};
-          const labels = dailyData.map(d => {
-            const date = new Date(d.date);
-            return date.toLocaleDateString('{{ currentSite.language }}', { month: 'short', day: 'numeric' });
+          var dailyData = {{ dailyStats|json_encode|raw }};
+          var labels = dailyData.map(function (d) {
+            return new Date(d.date).toLocaleDateString('{{ currentSite.language }}', { month: 'short', day: 'numeric' });
           });
 
           new Chart(document.getElementById('dailyChart'), {
@@ -281,7 +459,7 @@
               datasets: [
                 {
                   label: {{ 'Users'|t('craft-analytics')|json_encode|raw }},
-                  data: dailyData.map(d => d.users),
+                  data: dailyData.map(function (d) { return d.users; }),
                   borderColor: '#3b82f6',
                   backgroundColor: 'rgba(59, 130, 246, 0.1)',
                   fill: true,
@@ -292,7 +470,7 @@
                 },
                 {
                   label: {{ 'Sessions'|t('craft-analytics')|json_encode|raw }},
-                  data: dailyData.map(d => d.sessions),
+                  data: dailyData.map(function (d) { return d.sessions; }),
                   borderColor: '#10b981',
                   backgroundColor: 'rgba(16, 185, 129, 0.1)',
                   fill: true,
@@ -303,7 +481,7 @@
                 },
                 {
                   label: {{ 'Page Views'|t('craft-analytics')|json_encode|raw }},
-                  data: dailyData.map(d => d.pageviews),
+                  data: dailyData.map(function (d) { return d.pageviews; }),
                   borderColor: '#f59e0b',
                   backgroundColor: 'rgba(245, 158, 11, 0.1)',
                   fill: true,
@@ -317,10 +495,7 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
-              interaction: {
-                mode: 'index',
-                intersect: false,
-              },
+              interaction: { mode: 'index', intersect: false },
               plugins: {
                 legend: {
                   position: 'top',
@@ -328,22 +503,16 @@
                 },
               },
               scales: {
-                x: {
-                  grid: { display: false },
-                  ticks: { maxTicksLimit: 10 },
-                },
-                y: {
-                  beginAtZero: true,
-                  grid: { color: 'rgba(0,0,0,0.06)' },
-                },
+                x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' } },
               },
             },
           });
         {% endif %}
 
         {% if hasSources %}
-          const sourcesData = {{ trafficSources | json_encode | raw }};
-          const sourceColors = [
+          var sourcesData = {{ trafficSources|json_encode|raw }};
+          var sourceColors = [
             '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
             '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
           ];
@@ -351,9 +520,9 @@
           new Chart(document.getElementById('sourcesChart'), {
             type: 'doughnut',
             data: {
-              labels: sourcesData.map(s => s.source),
+              labels: sourcesData.map(function (s) { return s.source; }),
               datasets: [{
-                data: sourcesData.map(s => s.sessions),
+                data: sourcesData.map(function (s) { return s.sessions; }),
                 backgroundColor: sourceColors.slice(0, sourcesData.length),
                 borderWidth: 0,
               }],
@@ -370,8 +539,8 @@
             },
           });
         {% endif %}
-      });
-    </script>
+      })();
+    {% endjs %}
   {% endif %}
 
 {% endif %}

@@ -43,6 +43,7 @@ class AnalyticsController extends Controller
         $dailyStats = $isConfigured ? $service->getDailyStats() : [];
         $keyEvents = $isConfigured ? $service->getKeyEvents() : [];
         $engagement = $isConfigured ? $service->getEngagementStats() : [];
+        $searchConsole = ($isConfigured && $service->isSearchConsoleEnabled()) ? $service->getSearchConsoleStats() : [];
 
         return $this->renderTemplate('craft-analytics/_cp/index', [
             'isConfigured' => $isConfigured,
@@ -53,6 +54,7 @@ class AnalyticsController extends Controller
             'dailyStats' => $dailyStats,
             'keyEvents' => $keyEvents,
             'engagement' => $engagement,
+            'searchConsole' => $searchConsole,
         ]);
     }
 

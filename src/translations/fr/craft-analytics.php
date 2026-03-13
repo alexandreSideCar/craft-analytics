@@ -63,6 +63,24 @@ return [
     'New Users' => 'Nouveaux utilisateurs',
     'Returning Users' => 'Utilisateurs récurrents',
 
+    // Search Console
+    'Search Console' => 'Search Console',
+    'Enable Search Console' => 'Activer Search Console',
+    'Display Google Search Console data (queries, impressions, clicks, positions). Requires the Search Console API to be enabled in Google Cloud Console. You must reconnect your Google account after enabling this.' => 'Afficher les données Google Search Console (requêtes, impressions, clics, positions). L\'API Search Console doit être activée dans Google Cloud Console. Vous devez reconnecter votre compte Google après l\'activation.',
+    'Search Console Site URL' => 'URL du site Search Console',
+    'The site URL as registered in Google Search Console (e.g. `https://example.com/`). Leave blank to use the primary site URL.' => 'L\'URL du site telle qu\'enregistrée dans Google Search Console (ex: `https://example.com/`). Laisser vide pour utiliser l\'URL du site principal.',
+    'Search Console (30 days)' => 'Search Console (30 jours)',
+    'Clicks' => 'Clics',
+    'Impressions' => 'Impressions',
+    'CTR' => 'CTR',
+    'Avg. Position' => 'Position moy.',
+    'Top Search Queries' => 'Requêtes de recherche',
+    'Query' => 'Requête',
+    'Position' => 'Position',
+    'Top Pages in Search' => 'Pages dans la recherche',
+    'Page' => 'Page',
+    'Search Console data may be delayed by 2-3 days.' => 'Les données Search Console peuvent avoir un délai de 2 à 3 jours.',
+
     // Controller messages
     'Analytics cache cleared.' => 'Cache analytique vidé.',
     'Successfully connected to Google Analytics!' => 'Connexion à Google Analytics réussie !',

@@ -63,6 +63,24 @@ return [
     'New Users' => 'New Users',
     'Returning Users' => 'Returning Users',
 
+    // Search Console
+    'Search Console' => 'Search Console',
+    'Enable Search Console' => 'Enable Search Console',
+    'Display Google Search Console data (queries, impressions, clicks, positions). Requires the Search Console API to be enabled in Google Cloud Console. You must reconnect your Google account after enabling this.' => 'Display Google Search Console data (queries, impressions, clicks, positions). Requires the Search Console API to be enabled in Google Cloud Console. You must reconnect your Google account after enabling this.',
+    'Search Console Site URL' => 'Search Console Site URL',
+    'The site URL as registered in Google Search Console (e.g. `https://example.com/`). Leave blank to use the primary site URL.' => 'The site URL as registered in Google Search Console (e.g. `https://example.com/`). Leave blank to use the primary site URL.',
+    'Search Console (30 days)' => 'Search Console (30 days)',
+    'Clicks' => 'Clicks',
+    'Impressions' => 'Impressions',
+    'CTR' => 'CTR',
+    'Avg. Position' => 'Avg. Position',
+    'Top Search Queries' => 'Top Search Queries',
+    'Query' => 'Query',
+    'Position' => 'Position',
+    'Top Pages in Search' => 'Top Pages in Search',
+    'Page' => 'Page',
+    'Search Console data may be delayed by 2-3 days.' => 'Search Console data may be delayed by 2-3 days.',
+
     // Controller messages
     'Analytics cache cleared.' => 'Analytics cache cleared.',
     'Successfully connected to Google Analytics!' => 'Successfully connected to Google Analytics!',
