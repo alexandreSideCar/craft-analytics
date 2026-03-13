@@ -13,6 +13,7 @@ Google Analytics 4 dashboard plugin for Craft CMS 5.
 - **Traffic sources** — Channel breakdown with doughnut chart
 - **Key events** — GA4 key events (conversions) with counts and trends
 - **Engagement stats** — Average session duration, bounce rate, pages per session, new vs returning users
+- **Google Search Console** — Search performance data including queries, pages, clicks, impressions, CTR, and average position
 - **Dashboard widget** — Compact summary widget for the Craft dashboard
 - **Permissions** — Granular user permissions (View Analytics / Manage Analytics)
 - **Translations** — English and French included
@@ -23,8 +24,9 @@ Google Analytics 4 dashboard plugin for Craft CMS 5.
 
 - Craft CMS 5.3+
 - PHP 8.2+
-- A Google Cloud project with the **Google Analytics Data API** enabled
+- A Google Cloud project with the **Google Analytics Data API** and **Google Search Console API** enabled
 - A GA4 property
+- A Search Console property (optional, for Search Console features)
 
 ## Installation
 
@@ -39,7 +41,7 @@ Or install via the Craft CMS Plugin Store.
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create or select a project
-3. Enable the **Google Analytics Data API** (APIs & Services > Library)
+3. Enable the **Google Analytics Data API** and the **Google Search Console API** (APIs & Services > Library)
 4. Create OAuth 2.0 credentials:
    - Go to APIs & Services > Credentials
    - Click **Create Credentials** > **OAuth client ID**
