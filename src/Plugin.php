@@ -83,6 +83,7 @@ class Plugin extends BasePlugin
                 $event->rules['craft-analytics'] = 'craft-analytics/analytics/index';
                 $event->rules['craft-analytics/oauth/connect'] = 'craft-analytics/analytics/connect';
                 $event->rules['craft-analytics/oauth/callback'] = 'craft-analytics/analytics/callback';
+                $event->rules['craft-analytics/oauth/disconnect'] = 'craft-analytics/analytics/disconnect';
             }
         );
     }

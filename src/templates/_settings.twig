@@ -42,6 +42,7 @@
       container.classList.add('hidden');
     }
   });
+
 {% endjs %}
 
 <hr>
@@ -79,6 +80,7 @@
     </div>
 </div>
 
+
 {# Preserve OAuth tokens on save #}
 {{ forms.hidden({
     name: 'oauthAccessToken',
@@ -104,11 +106,7 @@
                 <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
                 {{ 'Connected to Google Analytics'|t('craft-analytics') }}
             </span>
-            <form method="post">
-                {{ csrfInput() }}
-                {{ actionInput('craft-analytics/analytics/disconnect') }}
-                <button type="submit" class="btn small" onclick="return confirm('{{ 'Disconnect from Google Analytics?'|t('craft-analytics')|e('js') }}')">{{ 'Disconnect'|t('craft-analytics') }}</button>
-            </form>
+            <a href="{{ cpUrl('craft-analytics/oauth/disconnect') }}" class="btn small" onclick="return confirm('{{ 'Disconnect from Google Analytics?'|t('craft-analytics')|e('js') }}')">{{ 'Disconnect'|t('craft-analytics') }}</a>
         </div>
     </div>
 {% else %}

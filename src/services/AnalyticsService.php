@@ -5,6 +5,7 @@ namespace sidecar\craftanalytics\services;
 use Craft;
 use craft\base\Component;
 use craft\helpers\App;
+use craft\helpers\UrlHelper;
 use Google\Analytics\Data\V1beta\BetaAnalyticsDataClient;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Dimension;
@@ -55,9 +56,7 @@ class AnalyticsService extends Component
 
     public function getRedirectUri(): string
     {
-        return rtrim(Craft::$app->getSites()->getPrimarySite()->getBaseUrl(), '/') .
-            '/' . Craft::$app->getConfig()->getGeneral()->cpTrigger .
-            '/craft-analytics/oauth/callback';
+        return UrlHelper::cpUrl('craft-analytics/oauth/callback', null, 'https');
     }
 
     public function handleOAuthCallback(string $code): void
@@ -92,12 +91,11 @@ class AnalyticsService extends Component
 
     public function disconnect(): void
     {
-        $settings = Plugin::$plugin->getSettings();
-        $settings->oauthAccessToken = '';
-        $settings->oauthRefreshToken = '';
-        $settings->oauthExpiresAt = 0;
-
-        Craft::$app->getPlugins()->savePluginSettings(Plugin::$plugin, $settings->toArray());
+        Craft::$app->getPlugins()->savePluginSettings(Plugin::$plugin, [
+            'oauthAccessToken' => '',
+            'oauthRefreshToken' => '',
+            'oauthExpiresAt' => 0,
+        ]);
         $this->clearCache();
     }
 

@@ -3,6 +3,7 @@
 namespace sidecar\craftanalytics\controllers;
 
 use Craft;
+use craft\helpers\UrlHelper;
 use craft\web\Controller;
 use sidecar\craftanalytics\Plugin;
 use yii\web\ForbiddenHttpException;
@@ -67,7 +68,7 @@ class AnalyticsController extends Controller
 
         Craft::$app->getSession()->setNotice(Craft::t('craft-analytics', 'Analytics cache cleared.'));
 
-        return $this->redirect('craft-analytics');
+        return $this->redirect(UrlHelper::cpUrl('craft-analytics'));
     }
 
     public function actionConnect(): Response
@@ -88,12 +89,12 @@ class AnalyticsController extends Controller
 
         if ($error) {
             Craft::$app->getSession()->setError(Craft::t('craft-analytics', 'Google authorization denied: {error}', ['error' => $error]));
-            return $this->redirect('settings/plugins/craft-analytics');
+            return $this->redirect(UrlHelper::cpUrl('settings/plugins/craft-analytics'));
         }
 
         if (empty($code)) {
             Craft::$app->getSession()->setError(Craft::t('craft-analytics', 'No authorization code received.'));
-            return $this->redirect('settings/plugins/craft-analytics');
+            return $this->redirect(UrlHelper::cpUrl('settings/plugins/craft-analytics'));
         }
 
         try {
@@ -104,18 +105,17 @@ class AnalyticsController extends Controller
             Craft::$app->getSession()->setError(Craft::t('craft-analytics', 'Connection failed: {error}', ['error' => $e->getMessage()]));
         }
 
-        return $this->redirect('settings/plugins/craft-analytics');
+        return $this->redirect(UrlHelper::cpUrl('settings/plugins/craft-analytics'));
     }
 
     public function actionDisconnect(): Response
     {
         $this->requireAdmin();
-        $this->requirePostRequest();
 
         Plugin::$plugin->analytics->disconnect();
 
         Craft::$app->getSession()->setNotice(Craft::t('craft-analytics', 'Disconnected from Google Analytics.'));
 
-        return $this->redirect('settings/plugins/craft-analytics');
+        return $this->redirect(UrlHelper::cpUrl('settings/plugins/craft-analytics'));
     }
 }

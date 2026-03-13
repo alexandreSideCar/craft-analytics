@@ -25,9 +25,9 @@
         {% set data = summary[key] ?? {} %}
         <tr>
           <th class="light">{{ label }}</th>
-          <td style="text-align: right;">{{ data.users ?? 0 | number_format }}</td>
-          <td style="text-align: right;">{{ data.sessions ?? 0 | number_format }}</td>
-          <td style="text-align: right;">{{ data.pageviews ?? 0 | number_format }}</td>
+          <td style="text-align: right;">{{ (data.users ?? 0) | number_format }}</td>
+          <td style="text-align: right;">{{ (data.sessions ?? 0) | number_format }}</td>
+          <td style="text-align: right;">{{ (data.pageviews ?? 0) | number_format }}</td>
         </tr>
       {% endfor %}
     </tbody>
