@@ -28,6 +28,7 @@
   .ca-grid {
     display: grid;
     gap: var(--xl);
+    align-items: baseline;
   }
   .ca-grid--3 { grid-template-columns: repeat(3, 1fr); }
   .ca-grid--4 { grid-template-columns: repeat(4, 1fr); }
@@ -48,7 +49,8 @@
   .ca-pane-title {
     color: var(--fg-subtle);
     font-weight: 400;
-    margin-block-end: var(--m);
+    margin: 0 0 var(--m) 0; /* <--- Force la marge supérieure à 0 pour un alignement strict */
+    padding-block-end: 0;
   }
 
   .ca-stat-value {
