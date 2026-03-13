@@ -56,7 +56,15 @@ class AnalyticsService extends Component
 
     public function getRedirectUri(): string
     {
-        return UrlHelper::cpUrl('craft-analytics/oauth/callback', null, 'https');
+        $url = UrlHelper::cpUrl('craft-analytics/oauth/callback', null, 'https');
+        
+        // Supprime tout paramètre d'URL dynamique (ex: ?site=en) ajouté par Craft
+        // pour garantir que l'URL soit toujours statique et acceptée par Google.
+        if (($pos = strpos($url, '?')) !== false) {
+            $url = substr($url, 0, $pos);
+        }
+        
+        return $url;
     }
 
     public function handleOAuthCallback(string $code): void

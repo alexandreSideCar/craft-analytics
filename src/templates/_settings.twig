@@ -34,15 +34,15 @@
 </div>
 
 {% js %}
-  document.getElementById('enableSearchConsole').addEventListener('click', function() {
-    var container = document.getElementById('searchConsoleSettings');
-    if (container.classList.contains('hidden')) {
-      container.classList.remove('hidden');
+  var $lightswitch = $('#{{ "enableSearchConsole"|namespaceInputId }}');
+  
+  $lightswitch.on('change', function() {
+    if ($(this).val() == '1') {
+      $('#searchConsoleSettings').removeClass('hidden');
     } else {
-      container.classList.add('hidden');
+      $('#searchConsoleSettings').addClass('hidden');
     }
   });
-
 {% endjs %}
 
 <hr>
