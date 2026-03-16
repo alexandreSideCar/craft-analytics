@@ -74,7 +74,7 @@ class AnalyticsService extends Component
         $clientSecret = App::parseEnv($settings->oauthClientSecret);
         $redirectUri = $this->getRedirectUri();
 
-        $response = Craft::createGuzzleClient()->post('https://oauth2.googleapis.com/token', [
+        $response = Craft::createGuzzleClient(['timeout' => 10])->post('https://oauth2.googleapis.com/token', [
             'form_params' => [
                 'code' => $code,
                 'client_id' => $clientId,
@@ -476,8 +476,10 @@ class AnalyticsService extends Component
             }
 
             // Add previous-only events to total
+            $currentEventNames = array_column($events, 'name');
+            $currentEventNames = array_flip($currentEventNames);
             foreach ($prevLookup as $name => $prev) {
-                if (!isset(array_column($events, null, 'name')[$name])) {
+                if (!isset($currentEventNames[$name])) {
                     $prevTotal += $prev;
                 }
             }
@@ -667,13 +669,19 @@ class AnalyticsService extends Component
             throw new \RuntimeException('Not connected to Google. Please authorize in plugin settings.');
         }
 
-        $client = new GoogleClient();
-        $client->setClientId($clientId);
-        $client->setClientSecret($clientSecret);
-        $client->setAccessType('offline');
-        $client->fetchAccessTokenWithRefreshToken($refreshToken);
+        try {
+            $client = new GoogleClient();
+            $client->setClientId($clientId);
+            $client->setClientSecret($clientSecret);
+            $client->setAccessType('offline');
+            $client->fetchAccessTokenWithRefreshToken($refreshToken);
 
-        return new SearchConsole($client);
+            return new SearchConsole($client);
+        } catch (\Throwable $e) {
+            Craft::error('Analytics: Search Console token refresh failed: ' . $e->getMessage(), __METHOD__);
+            $this->disconnect();
+            throw new \RuntimeException('Google authentication expired. Please reconnect in plugin settings.');
+        }
     }
 
     private function _getSearchConsoleSiteUrl(): string
@@ -701,24 +709,30 @@ class AnalyticsService extends Component
                 throw new \RuntimeException('Not connected to Google Analytics. Please authorize in plugin settings.');
             }
 
-            $credentials = new UserRefreshCredentials(
-                $this->_getScopes(),
-                [
-                    'client_id' => $clientId,
-                    'client_secret' => $clientSecret,
-                    'refresh_token' => $refreshToken,
-                ]
-            );
+            try {
+                $credentials = new UserRefreshCredentials(
+                    $this->_getScopes(),
+                    [
+                        'client_id' => $clientId,
+                        'client_secret' => $clientSecret,
+                        'refresh_token' => $refreshToken,
+                    ]
+                );
 
-            $this->_client = new BetaAnalyticsDataClient([
-                'credentials' => $credentials,
-            ]);
+                $this->_client = new BetaAnalyticsDataClient([
+                    'credentials' => $credentials,
+                ]);
+            } catch (\Throwable $e) {
+                Craft::error('Analytics: OAuth token refresh failed: ' . $e->getMessage(), __METHOD__);
+                $this->disconnect();
+                throw new \RuntimeException('Google authentication expired. Please reconnect in plugin settings.');
+            }
         }
 
         return $this->_client;
     }
 
-    private function _percentChange(int $current, int $previous): float
+    private function _percentChange(float|int $current, float|int $previous): float
     {
         if ($previous > 0) {
             return round((($current - $previous) / $previous) * 100, 1);
