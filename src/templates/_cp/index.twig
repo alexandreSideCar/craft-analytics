@@ -28,7 +28,7 @@
   .ca-grid {
     display: grid;
     gap: var(--xl);
-    align-items: baseline;
+    align-items: baseline; /* Aligns grid items by their first text baseline */
   }
   .ca-grid--3 { grid-template-columns: repeat(3, 1fr); }
   .ca-grid--4 { grid-template-columns: repeat(4, 1fr); }
@@ -86,6 +86,17 @@
   .ca-bold { font-weight: 600; }
   .ca-code { font-size: 0.85em; color: var(--fg-subtle); }
   .ca-hint { font-size: 0.8em; color: var(--fg-subtle); margin-block-start: var(--s); }
+
+  /* Responsive tables */
+  .pane { overflow: hidden; }
+  .ca-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ca-table-wrap table { min-width: 100%; }
+  .ca-truncate {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .ca-metric-card { text-align: center; }
   .ca-metric-card__label { font-size: 0.85em; color: var(--fg-subtle); }
@@ -151,7 +162,7 @@
       {% set change = data.change ?? {} %}
       <div class="pane">
         <h2 class="ca-pane-title">{{ period.label }}</h2>
-        <table class="data fullwidth">
+        <div class="ca-table-wrap"><table class="data fullwidth">
           <tbody>
             {% for metric, metricLabel in { users: 'Users'|t('craft-analytics'), sessions: 'Sessions'|t('craft-analytics'), pageviews: 'Page Views'|t('craft-analytics') } %}
               <tr>
@@ -165,7 +176,7 @@
               </tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
         <div class="ca-hint">{{ period.hint }}</div>
       </div>
     {% endfor %}
@@ -192,7 +203,7 @@
       {% if topPages.error is defined %}
         <p class="error">{{ topPages.error }}</p>
       {% elseif topPages|length %}
-        <table class="data fullwidth">
+        <div class="ca-table-wrap"><table class="data fullwidth">
           <thead>
             <tr>
               <th>{{ 'Title'|t('craft-analytics') }}</th>
@@ -204,14 +215,14 @@
           <tbody>
             {% for page in topPages %}
               <tr>
-                <td>{{ page.title }}</td>
-                <td><code class="ca-code">{{ page.path }}</code></td>
+                <td class="ca-truncate" title="{{ page.title }}">{{ page.title }}</td>
+                <td class="ca-truncate" title="{{ page.path }}"><code class="ca-code">{{ page.path }}</code></td>
                 <td class="ca-right ca-bold ca-tabnum">{{ page.views|number_format }}</td>
                 <td class="ca-right">{{ _self.changeBadge(page.change) }}</td>
               </tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
       {% else %}
         <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
       {% endif %}
@@ -226,7 +237,7 @@
         <div class="ca-chart--sm">
           <canvas id="sourcesChart"></canvas>
         </div>
-        <table class="data fullwidth">
+        <div class="ca-table-wrap"><table class="data fullwidth">
           <thead>
             <tr>
               <th>{{ 'Source'|t('craft-analytics') }}</th>
@@ -243,7 +254,7 @@
               </tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
       {% else %}
         <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
       {% endif %}
@@ -265,7 +276,7 @@
           </div>
           <div>{{ _self.changeBadge(keyEvents.totalChange) }}</div>
         </div>
-        <table class="data fullwidth">
+        <div class="ca-table-wrap"><table class="data fullwidth">
           <thead>
             <tr>
               <th>{{ 'Event'|t('craft-analytics') }}</th>
@@ -280,9 +291,20 @@
                 <td class="ca-right ca-bold ca-tabnum">{{ event.count|number_format }}</td>
                 <td class="ca-right">{{ _self.changeBadge(event.change) }}</td>
               </tr>
+              {% if event.details is defined and event.details|length %}
+                {% for detail in event.details %}
+                  <tr>
+                    <td class="ca-truncate" style="padding-left: var(--xl);">
+                      <a href="{{ detail.pagePath }}" class="light" title="{{ detail.pageTitle }}" target="_blank">{{ detail.pagePath }}</a>
+                    </td>
+                    <td class="ca-right ca-tabnum light">{{ detail.count|number_format }}</td>
+                    <td></td>
+                  </tr>
+                {% endfor %}
+              {% endif %}
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
       {% else %}
         <p class="light">{{ 'No key events configured in GA4.'|t('craft-analytics') }}</p>
       {% endif %}
@@ -294,7 +316,7 @@
       {% if engagement.error is defined %}
         <p class="error">{{ engagement.error }}</p>
       {% else %}
-        <table class="data fullwidth">
+        <div class="ca-table-wrap"><table class="data fullwidth">
           <tbody>
             <tr>
               <th class="light">{{ 'Avg. Session Duration'|t('craft-analytics') }}</th>
@@ -326,7 +348,7 @@
               <td class="ca-change-cell"></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
         <div class="ca-hint">{{ 'vs 30 days before'|t('craft-analytics') }}</div>
       {% endif %}
     </div>
@@ -365,12 +387,14 @@
         <div class="pane">
           <h2 class="ca-pane-title">{{ 'Top Search Queries'|t('craft-analytics') }}</h2>
           {% if searchConsole.queries|length %}
-            <table class="data fullwidth">
+            <div class="ca-table-wrap"><table class="data fullwidth">
               <thead>
                 <tr>
                   <th>{{ 'Query'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'Clicks'|t('craft-analytics') }}</th>
+                  <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'Impressions'|t('craft-analytics') }}</th>
+                  <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'CTR'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'Position'|t('craft-analytics') }}</th>
                 </tr>
@@ -378,15 +402,17 @@
               <tbody>
                 {% for q in searchConsole.queries %}
                   <tr>
-                    <td>{{ q.query }}</td>
+                    <td class="ca-truncate" title="{{ q.query }}">{{ q.query }}</td>
                     <td class="ca-right ca-bold ca-tabnum">{{ q.clicks|number_format }}</td>
+                    <td class="ca-right">{{ _self.changeBadge(q.clicksChange) }}</td>
                     <td class="ca-right ca-tabnum">{{ q.impressions|number_format }}</td>
+                    <td class="ca-right">{{ _self.changeBadge(q.impressionsChange) }}</td>
                     <td class="ca-right ca-tabnum">{{ q.ctr }}%</td>
                     <td class="ca-right ca-tabnum">{{ q.position }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
-            </table>
+            </table></div>
           {% else %}
             <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
           {% endif %}
@@ -395,12 +421,14 @@
         <div class="pane">
           <h2 class="ca-pane-title">{{ 'Top Pages in Search'|t('craft-analytics') }}</h2>
           {% if searchConsole.pages|length %}
-            <table class="data fullwidth">
+            <div class="ca-table-wrap"><table class="data fullwidth">
               <thead>
                 <tr>
                   <th>{{ 'Page'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'Clicks'|t('craft-analytics') }}</th>
+                  <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'Impressions'|t('craft-analytics') }}</th>
+                  <th class="ca-right" style="width: 70px;">{{ 'vs 30d'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'CTR'|t('craft-analytics') }}</th>
                   <th class="ca-right">{{ 'Position'|t('craft-analytics') }}</th>
                 </tr>
@@ -408,15 +436,17 @@
               <tbody>
                 {% for p in searchConsole.pages %}
                   <tr>
-                    <td><code class="ca-code">{{ p.page }}</code></td>
+                    <td class="ca-truncate" title="{{ p.page }}"><code class="ca-code">{{ p.page }}</code></td>
                     <td class="ca-right ca-bold ca-tabnum">{{ p.clicks|number_format }}</td>
+                    <td class="ca-right">{{ _self.changeBadge(p.clicksChange) }}</td>
                     <td class="ca-right ca-tabnum">{{ p.impressions|number_format }}</td>
+                    <td class="ca-right">{{ _self.changeBadge(p.impressionsChange) }}</td>
                     <td class="ca-right ca-tabnum">{{ p.ctr }}%</td>
                     <td class="ca-right ca-tabnum">{{ p.position }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
-            </table>
+            </table></div>
           {% else %}
             <p class="light">{{ 'No data available.'|t('craft-analytics') }}</p>
           {% endif %}

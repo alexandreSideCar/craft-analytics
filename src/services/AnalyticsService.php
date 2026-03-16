@@ -484,6 +484,49 @@ class AnalyticsService extends Component
                 }
             }
 
+            // Fetch detail: event + page title
+            $detailDims = [
+                new Dimension(['name' => 'eventName']),
+                new Dimension(['name' => 'pageTitle']),
+                new Dimension(['name' => 'pagePath']),
+            ];
+            $detailResponse = $client->runReport([
+                'property' => $propertyId,
+                'dateRanges' => [new DateRange(['start_date' => '30daysAgo', 'end_date' => 'today'])],
+                'dimensions' => $detailDims,
+                'metrics' => $metrics,
+                'orderBys' => [
+                    new OrderBy([
+                        'metric' => new MetricOrderBy(['metric_name' => 'keyEvents']),
+                        'desc' => true,
+                    ]),
+                ],
+                'limit' => 100,
+            ]);
+
+            $details = [];
+            foreach ($detailResponse->getRows() as $row) {
+                $eventName = $row->getDimensionValues()[0]->getValue();
+                $pageTitle = $row->getDimensionValues()[1]->getValue();
+                $pagePath = $row->getDimensionValues()[2]->getValue();
+                $count = (int) $row->getMetricValues()[0]->getValue();
+
+                if (!isset($details[$eventName])) {
+                    $details[$eventName] = [];
+                }
+                $details[$eventName][] = [
+                    'pageTitle' => $pageTitle,
+                    'pagePath' => $pagePath,
+                    'count' => $count,
+                ];
+            }
+
+            // Attach details to events
+            foreach ($events as &$event) {
+                $event['details'] = $details[$event['name']] ?? [];
+            }
+            unset($event);
+
             return [
                 'events' => $events,
                 'total' => $total,
@@ -596,7 +639,7 @@ class AnalyticsService extends Component
             $prevCtr = $prevTotals ? round($prevTotals->getCtr() * 100, 1) : 0;
             $prevPosition = $prevTotals ? round($prevTotals->getPosition(), 1) : 0;
 
-            // Top queries
+            // Top queries — current
             $queryRequest = new SearchAnalyticsQueryRequest();
             $queryRequest->setStartDate($startDate);
             $queryRequest->setEndDate($endDate);
@@ -605,18 +648,42 @@ class AnalyticsService extends Component
             $queryRequest->setRowLimit(10);
             $queryResponse = $service->searchanalytics->query($siteUrl, $queryRequest);
 
-            $queries = [];
-            foreach ($queryResponse->getRows() as $row) {
-                $queries[] = [
-                    'query' => $row->getKeys()[0],
+            // Top queries — previous
+            $prevQueryRequest = new SearchAnalyticsQueryRequest();
+            $prevQueryRequest->setStartDate($prevStartDate);
+            $prevQueryRequest->setEndDate($prevEndDate);
+            $prevQueryRequest->setDimensions(['query']);
+            $prevQueryRequest->setType('web');
+            $prevQueryRequest->setRowLimit(50);
+            $prevQueryResponse = $service->searchanalytics->query($siteUrl, $prevQueryRequest);
+
+            $prevQueryLookup = [];
+            foreach ($prevQueryResponse->getRows() as $row) {
+                $prevQueryLookup[$row->getKeys()[0]] = [
                     'clicks' => (int) $row->getClicks(),
                     'impressions' => (int) $row->getImpressions(),
-                    'ctr' => round($row->getCtr() * 100, 1),
-                    'position' => round($row->getPosition(), 1),
                 ];
             }
 
-            // Top pages
+            $queries = [];
+            foreach ($queryResponse->getRows() as $row) {
+                $query = $row->getKeys()[0];
+                $curClicks = (int) $row->getClicks();
+                $curImpressions = (int) $row->getImpressions();
+                $prev = $prevQueryLookup[$query] ?? ['clicks' => 0, 'impressions' => 0];
+
+                $queries[] = [
+                    'query' => $query,
+                    'clicks' => $curClicks,
+                    'impressions' => $curImpressions,
+                    'ctr' => round($row->getCtr() * 100, 1),
+                    'position' => round($row->getPosition(), 1),
+                    'clicksChange' => $this->_percentChange($curClicks, $prev['clicks']),
+                    'impressionsChange' => $this->_percentChange($curImpressions, $prev['impressions']),
+                ];
+            }
+
+            // Top pages — current
             $pageRequest = new SearchAnalyticsQueryRequest();
             $pageRequest->setStartDate($startDate);
             $pageRequest->setEndDate($endDate);
@@ -625,16 +692,39 @@ class AnalyticsService extends Component
             $pageRequest->setRowLimit(10);
             $pageResponse = $service->searchanalytics->query($siteUrl, $pageRequest);
 
+            // Top pages — previous
+            $prevPageRequest = new SearchAnalyticsQueryRequest();
+            $prevPageRequest->setStartDate($prevStartDate);
+            $prevPageRequest->setEndDate($prevEndDate);
+            $prevPageRequest->setDimensions(['page']);
+            $prevPageRequest->setType('web');
+            $prevPageRequest->setRowLimit(50);
+            $prevPageResponse = $service->searchanalytics->query($siteUrl, $prevPageRequest);
+
+            $prevPageLookup = [];
+            foreach ($prevPageResponse->getRows() as $row) {
+                $prevPageLookup[$row->getKeys()[0]] = [
+                    'clicks' => (int) $row->getClicks(),
+                    'impressions' => (int) $row->getImpressions(),
+                ];
+            }
+
             $pages = [];
             foreach ($pageResponse->getRows() as $row) {
                 $url = $row->getKeys()[0];
                 $path = parse_url($url, PHP_URL_PATH) ?: $url;
+                $curClicks = (int) $row->getClicks();
+                $curImpressions = (int) $row->getImpressions();
+                $prev = $prevPageLookup[$url] ?? ['clicks' => 0, 'impressions' => 0];
+
                 $pages[] = [
                     'page' => $path,
-                    'clicks' => (int) $row->getClicks(),
-                    'impressions' => (int) $row->getImpressions(),
+                    'clicks' => $curClicks,
+                    'impressions' => $curImpressions,
                     'ctr' => round($row->getCtr() * 100, 1),
                     'position' => round($row->getPosition(), 1),
+                    'clicksChange' => $this->_percentChange($curClicks, $prev['clicks']),
+                    'impressionsChange' => $this->_percentChange($curImpressions, $prev['impressions']),
                 ];
             }
 
